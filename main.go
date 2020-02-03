@@ -118,17 +118,20 @@ func (w multiWeatherProvider) temperature(city string) (float64, error) {
     }
 
     sum := 0.0
-
+    sources := 0
     for i:=0; i<len(w); i++ {
         select {
         case temp := <-temps:
             sum += temp
+            sources += 1
         case err := <-errs:
             return 0, err
+        case <- time.After(1*time.Second):
+            log.Printf("Time out")
         }
     }
 
-    return sum/float64(len(w)), nil
+    return sum/float64(sources), nil
 }
 
 type openWeatherMap struct {}
