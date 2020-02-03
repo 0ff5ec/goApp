@@ -5,6 +5,7 @@ import ("net/http"
         "strings"
         "time"
         "log"
+        "fmt"
 )
 
 // Code for version 1
@@ -56,7 +57,8 @@ func query(city string) (weatherData, error) {
 func main() {
     mw := multiWeatherProvider{
         openWeatherMap{},
-        weatherUnderground{apiKey: "KEY"},
+        darkSky{},
+        //weatherUnderground{apiKey: "KEY"},   //Uncomment this with a valid API key
     }
     
     http.HandleFunc("/weather/", func(w http.ResponseWriter, r *http.Request) {
@@ -143,6 +145,10 @@ func (w openWeatherMap) temperature(city string) (float64, error) {
         Main struct {
             Kelvin float64 `json:"temp"`
         } `json:"main"`
+        Coord struct {
+            Lon float64 `json:"lon"`
+            Lat float64 `json:"lat"`
+        } `json:"coord"`
     }
     
     if err := json.NewDecoder(resp.Body).Decode(&d); err != nil {
@@ -151,6 +157,50 @@ func (w openWeatherMap) temperature(city string) (float64, error) {
 
     log.Printf("openWeatherMap: %s: %.2f", city, d.Main.Kelvin)
     return d.Main.Kelvin, nil
+}
+
+type darkSky struct {}
+
+func (w darkSky) temperature(city string) (float64, error) {
+    owm, err := http.Get("http://api.openweathermap.org/data/2.5/weather?APPID=641916f8c2766e292f418aefc7ceff7b&q=" + city)
+    if err != nil {
+        return 0, nil
+    }
+
+    defer owm.Body.Close()
+
+    var c struct {
+        Coord struct {
+            Lon float64 `json:"lon"`
+            Lat float64 `json:"lat"`
+        } `json:"coord"`
+    }
+    
+    if err := json.NewDecoder(owm.Body).Decode(&c); err != nil {
+        return 0, nil
+    }
+
+    resp, err := http.Get("https://api.darksky.net/forecast/07912fd6985dfd172c5faeaaf13b582c/" + fmt.Sprintf("%.2f", c.Coord.Lat) + "," + fmt.Sprintf("%.2f", c.Coord.Lon))
+    if err != nil {
+        return 0, nil
+    }
+
+    defer resp.Body.Close()
+
+    var d struct {
+        Currently struct {
+            Temp float64 `json:"temperature"`
+        } `json:"currently"`
+    }
+
+    if err := json.NewDecoder(resp.Body).Decode(&d); err != nil {
+        return 0, nil
+    }
+
+    temp := (((d.Currently.Temp - 32)/9.0)*5.0) + 273.15
+
+    log.Printf("darkSky: %s: %.2f", city, temp)
+    return temp, nil
 }
 
 type weatherUnderground struct {

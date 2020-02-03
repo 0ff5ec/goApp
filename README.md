@@ -5,5 +5,8 @@ Version 2: Use multiple APIs to provide more accurate data. Also logs time taken
 
 Version 3: Made the api calls concurrent using Go channels and routines.
 
+Version 4: Added another api for accuracy. Due to requirements, had to query multiple apis from within. 
 
+
+ 
 Complete tutorial: https://howistart.org/posts/go/1/ 
